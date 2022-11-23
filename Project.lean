@@ -341,8 +341,6 @@ intros h₁
 rw[h₁]
 rfl
 
-
-
 theorem Nat.min_eq (x y : Nat) : min x y = if x ≤ y then x else y := rfl
 
 theorem Bool.not_eq_false' (x : Bool) : (!x) = false ↔ x = true := by
@@ -518,6 +516,8 @@ match t1, t2 with
           rw[rank_combine i]
           rw[Nat.min_eq]
           split <;> apply Nat.le_succ
+termination_by _  => t1.length + t2.length
+decreasing_by simp_wf; simp_arith [*]
 
 theorem hRank_mergeNodes_cons (ht₁ : IsHeapForest' r (u :: y)) (ht₂ : IsHeapForest' r (c :: z)) : u.rank = c.rank → u.rank + 1 ≤ hRank (mergeNodes le (u :: y) (c :: z)) := by
 intros h₁
@@ -996,24 +996,5 @@ theorem IsHeap_merge (hxs : IsHeapForest' rx xs) (hys : IsHeapForest' ry ys) :  
                         apply Nat.lt_of_succ_le h₈ 
 termination_by _  => xs.length + ys.length
 decreasing_by simp_wf; simp_arith [*]
-
---maybe add more conclusions
-theorem deleteMin_non_empty_IsHeap : deleteMin le xs = some (y, (heap ys)) → IsHeap (heap ys) ∧ IsMinHeap le (heap ys) := by
-  intros h₁
-  apply And.intro
-  . constructor
-    unfold deleteMin at h₁
-    split at  h₁
-    . sorry
-    . sorry
-    . sorry
-  . sorry
-
-theorem deleteMin_empty_IsHeap :  deleteMin le xs = none → isEmpty xs := by
-  intros h₁
-  
-  sorry
-
---change unsafe def back to theorem
 
 
