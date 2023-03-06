@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.Data.Nat.Basic
+
 universe u
 
 namespace project
@@ -23,11 +24,9 @@ abbrev BinTree α := HeapNodeAux α (Heap α)
 def Heap.nodes : Heap α → List (BinTree α)
   | heap ns => ns
 
-
 @[simp]
 theorem Heap.nodes_def : nodes (heap xs) = xs := rfl
   
-
 variable {α : Type u}
 
 def hRank : List (BinTree α) → Nat
@@ -132,23 +131,19 @@ partial def toArrayUnordered (h : Heap α) : Array α :=
         return acc
 
 
-
-inductive All (P: α → Prop) : List α → Prop 
-| nil: All P []
-| cons: P x → All P xs → All P (x :: xs)
-
 mutual
   inductive IsBinTree : BinTree α → Prop where
-  | C: IsRankedTree 1 a.rank a.children.nodes → IsBinTree a
+  | mk: IsRankedTree 1 a.rank a.children.nodes → IsBinTree a
 
   /-IsRankedTree n m ts :<=> the list ts contains the children of the parentnode of a binomial tree, IsRankedTree 
   assures that the order of the rank of the children is n, n+1, n+2,.....,m-1 and if n = m, then ts is empty-/
+  -- fix me: IsBinForest
   inductive IsRankedTree : Nat → Nat → List (BinTree α)  → Prop where
-  | nil : n = m → IsRankedTree n m []
-  | cons : t.rank = n → IsRankedTree (n + 1) m ts → IsBinTree t → IsRankedTree n m (t::ts)
+  | nil : IsRankedTree n n []
+  | cons : t.rank = n  → IsRankedTree (n + 1) m ts → IsBinTree t → IsRankedTree n m (t::ts)
 end
 
-/-IsHeap rank [t₁,...,tₙ] :<=> Each tree in the list t₁ upto tₙ should have a smaller rank than the tree
+/-IsHeapForest' rank [t₁,...,tₙ] :<=> Each tree in the list t₁ upto tₙ should have a smaller rank than the tree
 that follows so tₙ.rank < tₙ₊₁. Also each tree in the list should be a binomial tree so IsBinTree t should hold for each tree t-/
 inductive IsHeapForest' : Nat → List (BinTree α) → Prop where
 | nil : IsHeapForest' rank []
@@ -156,131 +151,125 @@ inductive IsHeapForest' : Nat → List (BinTree α) → Prop where
 
 abbrev IsHeapForest : List (BinTree α) → Prop := IsHeapForest' 0
 
-/-IsHeap (heap [ts]) holds if IsHeapForest 0 ts holds, 0 is used because every binomial tree has a rank higher than 0-/
+/-IsHeap h calls IsHeapForest with the list of trees extracted from h-/
 def IsHeap (h : Heap α): Prop :=
   IsHeapForest h.nodes
 
 
 mutual
   inductive IsSearchTree (le : α → α → Bool) : BinTree α → Prop where
-  | C : IsMinTree le a.val a.children.nodes → IsSearchTree le a
+  | mk : IsMinTree le a.val a.children.nodes → IsSearchTree le a
 
-  /-IsMinHeap le ns val :<=> assures that val(value of parent node) is less or equal than the value
-  of the nodes in ns(the children). Maintains minimum heap property-/
+  /-IsMinHeap le val ns :<=> assures that val(value of parent node) is less or equal than the value
+  of the nodes in ns (the children). Maintains minimum heap property-/
   inductive IsMinTree (le : α → α → Bool) : α → List (BinTree α) → Prop where
   | nil : IsMinTree le val []  
   | cons : le val n.val → IsMinTree le val ns → IsSearchTree le n → IsMinTree le val (n::ns) 
 end
 
-/-IsSearchForrest le (heap [t₁,...,tₙ]) :<=> IsMinHeap holds if for each tree t in the list t₁ upto tₙ, IsSearchTree le t holds-/
+/-IsMinHeap le (heap [t₁,...,tₙ]) :<=> IsMinHeap holds if for each tree t in the list t₁ upto tₙ, IsSearchTree le t holds-/
 inductive IsMinHeap (le : α → α → Bool) : Heap α → Prop where
 | nil : IsMinHeap le (heap [])
-| cons : IsSearchTree le n → IsMinHeap le (heap ns) → IsMinHeap le (heap (n::ns))
-
-theorem deleteMin_empty_IsHeap :  deleteMin le xs = none → isEmpty xs := by
-intro h₁
-unfold deleteMin at h₁
-cases xs
-rename_i a
-cases a
-. rfl
-. dsimp at h₁
-  rename_i b
-  cases b <;> contradiction
+| cons : IsSearchTree le n → IsMinHeap le (heap ns) → IsMinHeap le (heap (n::ns)) 
 
 
-theorem children_IsHeap : IsHeap (heap [h]) → IsHeap h.children := by
-intro h₁
-unfold IsHeap
-cases h₁
-unfold IsHeapForest
-cases h.children with | heap h₂ =>
-dsimp
-
-sorry
+theorem IsHeap_empty : IsHeap (@empty α) := by
+  constructor
 
 
---maybe add more conclusions
--- shouldn't we add a hypothesis that says the heap isn't empty?
-theorem deleteMin_non_empty_IsHeap (h₁ : IsHeap xs) (h₂ : IsMinHeap le xs) (hne: deleteMin le xs ≠ none): deleteMin le xs = some (y, ys) → IsHeap ys ∧ IsMinHeap le ys :=
-match xs with
-| heap [] => by
-  intro h₃
-  unfold deleteMin at h₃
-  dsimp at h₃
-  contradiction
-| heap [h] => by
-  intro h₃
-  unfold deleteMin at h₃
-  dsimp at h₃
-  rw[Option.some_inj] at h₃
-  rw[Prod.eq_iff_fst_eq_snd_eq] at h₃
-  simp at h₃
-  apply And.intro
-  . cases h₃
-    rename_i b c
-    unfold IsHeapForest at b
-    cases b
-    rw[←c]
-    unfold IsHeap
-    unfold IsHeap at h₁
-    dsimp at h₁
-    cases h₁
-    rename_i h₃ h₄ h₅
-    cases h₆ : h.children
-    rename_i ns
+theorem IsMinHeap_empty : IsMinHeap le (@empty α) := by
+  constructor
+
+
+theorem singleton_IsHeap : IsHeap (singleton a) := by
+  constructor
+  . dsimp
+    decide
+  . constructor
     dsimp
-    cases ns with
-    | nil => constructor
-    | cons n ns =>
-      cases h₃ with | C hs =>
-      constructor
-      . rw[h₆] at hs
-        dsimp at *
-        cases hs with | cons h₇ h₈ h₉ =>
-        rw[h₇]
-        decide
-      . rw[h₆] at hs
-        dsimp at hs
-        cases hs
-        assumption
-      . rw[h₆] at hs
-        dsimp at hs
-        cases hs with | cons eq rt bt=>
-        have hf : IsHeap h.children := by
-          rw[h₆]
-          constructor
-          . rw[eq]
-            decide
-          . assumption
-          . cases ns
-            . sorry
-            . rename_i e f g
-              induction g with
-              | nil => sorry
-              | cons => 
-                rename_i l m n
-                -- always get stuck in the last case of the constructor
-                sorry
+    constructor
+  . constructor
 
-        sorry
-        
-  . sorry
-| heap (h::hs) => by
-  intro h₃
-  cases h₂
-  cases h₁
-  unfold deleteMin at h₃
-  dsimp at h₃
-  split at h₃
-  . contradiction
-  . rename_i a b c d e f
-    cases c
-    rename_i g h i
-    cases i
-    . 
-      sorry
-    . sorry
-  . rw[Option.some_inj] at h₃
-    
-    sorry
+  
+theorem singleton_IsMinHeap : IsMinHeap le (singleton a) := by
+  constructor
+  . constructor
+    dsimp
+    constructor
+  . constructor
+
+
+theorem IsRankedTree_append (rt : IsRankedTree n m xs) (ha: IsBinTree a) (hrank: a.rank = m) :
+  IsRankedTree n (m + 1) (xs ++ [a]) := by
+  induction xs generalizing n
+  case nil =>
+    simp
+    cases rt
+    constructor
+    . assumption
+    . constructor
+    . assumption
+  case cons _ _ ih =>
+    cases rt
+    constructor
+    . assumption
+    . apply ih
+      assumption
+    . assumption
+
+
+theorem combine_trees_IsBinTree (le : α → α → Bool) (a b : BinTree α) : 
+  IsBinTree a → IsBinTree b → a.rank = b.rank → IsBinTree (combine le a b) := by
+    intros ha hb hab
+    constructor
+    unfold combine
+    split
+    . dsimp
+      cases hb
+      apply IsRankedTree_append
+      repeat assumption
+    . dsimp
+      cases ha
+      apply IsRankedTree_append
+      repeat assumption
+      simp_all
+
+
+theorem IsMinTree_append (h : IsMinTree le m xs) (ha : IsSearchTree le a) (hba: le m a.val = true) : 
+  IsMinTree le m (xs ++ [a]) := by
+    induction xs with
+    | nil =>
+      simp
+      constructor <;> assumption
+    | cons _ _ ih => 
+      cases h
+      constructor
+      . assumption
+      . simp
+        apply ih
+        assumption
+      . assumption
+
+
+variable {le : α → α → Bool} (not_le_le : ∀ x y, ¬ le x y → le y x)
+theorem combine_trees_IsSearchTree (a b : BinTree α) : 
+  IsSearchTree le a → IsSearchTree le b → IsSearchTree le (combine le a b) := by
+    intros ha hb
+    constructor
+    unfold combine
+    split
+    . dsimp
+      cases hb
+      apply IsMinTree_append
+      repeat assumption
+    . dsimp
+      cases ha
+      apply IsMinTree_append
+      repeat assumption
+      apply not_le_le
+      assumption
+
+
+  
+
+
