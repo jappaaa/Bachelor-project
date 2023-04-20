@@ -132,12 +132,12 @@ partial def toArrayUnordered (h : Heap α) : Array α :=
 
 
 mutual
+  /-IsBinTree sets the lower bound and the upper bound for the ranks of the children of a tree-/
   inductive IsBinTree : BinTree α → Prop where
-  | mk: IsRankedTree 1 a.rank a.children.nodes → IsBinTree a
+  | mk: IsRankedTree 1 t.rank t.children.nodes → IsBinTree t
 
   /-IsRankedTree n m ts :<=> the list ts contains the children of the parentnode of a binomial tree, IsRankedTree 
   assures that the order of the rank of the children is n, n+1, n+2,.....,m-1 and if n = m, then ts is empty-/
-  -- fix me: IsBinForest
   inductive IsRankedTree : Nat → Nat → List (BinTree α)  → Prop where
   | nil : IsRankedTree n n []
   | cons : t.rank = n  → IsRankedTree (n + 1) m ts → IsBinTree t → IsRankedTree n m (t::ts)
@@ -149,6 +149,7 @@ inductive IsHeapForest' : Nat → List (BinTree α) → Prop where
 | nil : IsHeapForest' rank []
 | cons : rank < t.rank → IsBinTree t → IsHeapForest' t.rank ts → IsHeapForest' rank (t::ts)
 
+/-abbreviation for IsHeapForest' 0 ts , the 0 ensures that the rank of the first tree in the list is at least 1-/
 abbrev IsHeapForest : List (BinTree α) → Prop := IsHeapForest' 0
 
 /-IsHeap h calls IsHeapForest with the list of trees extracted from h-/
@@ -158,19 +159,19 @@ def IsHeap (h : Heap α): Prop :=
 
 mutual
   inductive IsSearchTree (le : α → α → Bool) : BinTree α → Prop where
-  | mk : IsMinTree le a.val a.children.nodes → IsSearchTree le a
+  | mk : IsMinTree le t.val t.children.nodes → IsSearchTree le t
 
   /-IsMinHeap le val ns :<=> assures that val(value of parent node) is less or equal than the value
   of the nodes in ns (the children). Maintains minimum heap property-/
   inductive IsMinTree (le : α → α → Bool) : α → List (BinTree α) → Prop where
   | nil : IsMinTree le val []  
-  | cons : le val n.val → IsMinTree le val ns → IsSearchTree le n → IsMinTree le val (n::ns) 
+  | cons : le val t.val → IsMinTree le val ts → IsSearchTree le t → IsMinTree le val (t::ts) 
 end
 
 /-IsMinHeap le (heap [t₁,...,tₙ]) :<=> IsMinHeap holds if for each tree t in the list t₁ upto tₙ, IsSearchTree le t holds-/
 inductive IsMinHeap (le : α → α → Bool) : Heap α → Prop where
 | nil : IsMinHeap le (heap [])
-| cons : IsSearchTree le n → IsMinHeap le (heap ns) → IsMinHeap le (heap (n::ns)) 
+| cons : IsSearchTree le t → IsMinHeap le (heap ts) → IsMinHeap le (heap (t::ts)) 
 
 
 theorem IsHeap_empty : IsHeap (@empty α) := by
@@ -218,7 +219,7 @@ theorem IsRankedTree_append (rt : IsRankedTree n m xs) (ha: IsBinTree a) (hrank:
     . assumption
 
 
-theorem combine_trees_IsBinTree (le : α → α → Bool) (a b : BinTree α) : 
+theorem combine_IsBinTree (le : α → α → Bool) (a b : BinTree α) : 
   IsBinTree a → IsBinTree b → a.rank = b.rank → IsBinTree (combine le a b) := by
     intros ha hb hab
     constructor
@@ -252,7 +253,7 @@ theorem IsMinTree_append (h : IsMinTree le m xs) (ha : IsSearchTree le a) (hba: 
 
 
 variable {le : α → α → Bool} (not_le_le : ∀ x y, ¬ le x y → le y x)
-theorem combine_trees_IsSearchTree (a b : BinTree α) : 
+theorem combine_IsSearchTree (a b : BinTree α) : 
   IsSearchTree le a → IsSearchTree le b → IsSearchTree le (combine le a b) := by
     intros ha hb
     constructor
